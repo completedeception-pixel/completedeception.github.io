@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Flagle Redux — Guess the Flag</title>
+<title>Flagle 2 — Guess the Flag</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
  
@@ -127,7 +127,7 @@
   <header>
     <h1>FLAGLE 2</h1>
     <p class="subtitle">Guess the country from its flag</p>
-    <p class="credit">Created by Crypt and Inco </p>
+    <p class="credit">Created by Crypt and Inco</p>
   </header>
  
   <div class="status-row">
@@ -487,8 +487,13 @@ function endGame(won){
   form.querySelector('button').disabled = true;
   flipAllTiles();
   statusText.textContent = 'Fully revealed';
+ 
+  streak = won ? streak + 1 : 0;
+  localStorage.setItem('flagleStreak', streak);
+  updateStreakDisplay();
+ 
   message.className = 'message ' + (won ? 'right' : 'wrong');
-  message.textContent = won ? '✓ Correct!' : '✕ Out of tries.';
+  message.textContent = won ? '✓ Correct!' : '';
   revealBox.style.display = 'block';
   revealBox.innerHTML = `<div class="name">${current.name}</div><div class="region">${current.region}</div>`;
   newGameBtn.style.display = 'block';
@@ -523,8 +528,8 @@ form.addEventListener('submit', e => {
     message.className = 'message hint';
     message.textContent = `Hint: this flag belongs to a country in ${current.region}.`;
   } else {
-    message.className = 'message wrong';
-    message.textContent = 'Not quite — another segment is revealed.';
+    message.className = 'message';
+    message.textContent = '';
   }
 });
  
