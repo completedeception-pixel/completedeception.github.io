@@ -7,15 +7,15 @@
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
  
   :root{
-    --bg:#f5f3ee;
-    --card:#ffffff;
-    --border:#e4e0d4;
-    --ink:#20232b;
-    --muted:#767268;
-    --accent:#b9812f;
-    --accent-dark:#8a6122;
-    --wrong:#c0392b;
-    --right:#3f8a4c;
+    --bg:#14151a;
+    --card:#1c1e26;
+    --border:#33353f;
+    --ink:#eae8e1;
+    --muted:#9b988e;
+    --accent:#d9a84a;
+    --accent-dark:#f0bf63;
+    --wrong:#e0574a;
+    --right:#4fcf85;
     --tile-back:#2c2f38;
   }
   *{box-sizing:border-box;}
@@ -76,22 +76,22 @@
   input[type=text]{
     flex:1; padding:11px 14px; font-size:1rem; font-family:inherit;
     border-radius:8px; border:1px solid var(--border);
-    background:#fff; color:var(--ink);
+    background:var(--card); color:var(--ink);
   }
   input[type=text]:focus{ outline:2px solid var(--accent); outline-offset:1px; }
-  input[type=text]:disabled{ background:#f0efe9; color:var(--muted); }
+  input[type=text]:disabled{ background:#22232b; color:var(--muted); }
   button{
     font-family:'Inter', sans-serif; font-weight:700; font-size:0.92rem;
     padding:11px 18px; border-radius:8px; border:none;
-    background:var(--accent); color:#fff; cursor:pointer;
+    background:var(--accent); color:#1c1a12; cursor:pointer;
   }
   button:hover:not(:disabled){ background:var(--accent-dark); }
-  button:disabled{ background:#ddd8ca; cursor:default; }
+  button:disabled{ background:#3a3b42; color:#7a7870; cursor:default; }
   button.secondary{
     background:transparent; color:var(--accent-dark); border:1px solid var(--accent-dark);
     width:100%; margin-top:14px; padding:10px;
   }
-  button.secondary:hover{ background:rgba(185,129,47,0.08); }
+  button.secondary:hover{ background:rgba(217,168,74,0.1); }
  
   .message{ min-height:28px; margin:6px 0 14px; font-size:0.95rem; font-weight:500; }
   .message.wrong{ color:var(--wrong); }
@@ -102,14 +102,14 @@
   .history li{
     display:flex; justify-content:space-between; align-items:center;
     padding:9px 12px; border-radius:7px; font-size:0.92rem;
-    background:#fbeceb; border:1px solid #f0d3d1; color:#7a2b2b;
+    background:#2b1e1e; border:1px solid #4a2c2a; color:#e39b93;
   }
-  .history li.correct{ background:#eaf5ec; border-color:#cfe8d3; color:#2c5c34; }
+  .history li.correct{ background:#1c2b21; border-color:#2e4a37; color:#8fd6a8; }
   .history li span.mark{ font-weight:700; }
  
   .reveal-box{
     text-align:center; margin-top:6px; padding:14px; border-radius:8px;
-    background:#faf7ef; border:1px solid var(--border);
+    background:var(--card); border:1px solid var(--border);
   }
   .reveal-box .name{ font-family:'Cinzel', serif; color:var(--accent-dark); font-size:1.15rem; }
   .reveal-box .region{ color:var(--muted); font-size:0.88rem; margin-top:2px; }
@@ -169,6 +169,12 @@
    The starter list below points to flagcdn.com (a free public flag
    image service) so the game works immediately. Feel free to delete
    any of these and replace them with your own local files.
+ 
+   RELIABILITY: every "file" entry that points at flagcdn.com is also
+   automatically retried against a second, independent flag CDN
+   (jsDelivr's flag-icons package) if the first image fails to load.
+   That fallback only kicks in for flagcdn.com URLs — local files you
+   add yourself are used as-is.
    ============================================================ */
 const FLAGS = [
   { name: "South Korea", region: "Asia", file: "https://flagcdn.com/w320/kr.png" },
@@ -411,7 +417,22 @@ function startGame(){
   tries = 0; guessed = false;
   tileOrder = shuffledIndices(6);
  
-  flagFull.innerHTML = `<img src="${current.file}" alt="Flag to guess" onerror="this.parentElement.innerHTML='<div class=\\'load-error\\'>Could not load image:<br>${current.file}</div>'">`;
+  flagFull.innerHTML = '';
+  const img = document.createElement('img');
+  img.alt = 'Flag to guess';
+  img.src = current.file;
+  img.onerror = () => {
+    // Primary image failed — if it's a flagcdn.com URL, try a second,
+    // independent CDN (jsDelivr's flag-icons package) before giving up.
+    const m = current.file.match(/flagcdn\.com\/w\d+\/([a-z]{2})\.png$/i);
+    if(m && !img.dataset.fallbackTried){
+      img.dataset.fallbackTried = '1';
+      img.src = `https://cdn.jsdelivr.net/npm/flag-icons@7/flags/4x3/${m[1].toLowerCase()}.svg`;
+      return;
+    }
+    flagFull.innerHTML = `<div class="load-error">Could not load image:<br>${current.file}</div>`;
+  };
+  flagFull.appendChild(img);
   buildTiles();
  
   guessCount.textContent = '0';
@@ -494,3 +515,4 @@ startGame();
 </script>
 </body>
 </html>
+ 
