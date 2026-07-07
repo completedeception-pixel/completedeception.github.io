@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Flagle 2 — Guess the Flag</title>
+<title>Flagle Redux — Guess the Flag</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
  
@@ -31,12 +31,14 @@
     margin:0 0 4px; color:var(--ink);
   }
   .subtitle{ margin:0; color:var(--muted); font-size:0.92rem; }
+  .credit{ margin:6px 0 0; color:var(--muted); font-size:0.78rem; opacity:0.75; }
  
   .status-row{
-    display:flex; justify-content:space-between; align-items:center;
-    margin:18px 0 10px; font-size:0.88rem; color:var(--muted); font-weight:500;
+    display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center;
+    gap:6px 14px; margin:18px 0 10px; font-size:0.88rem; color:var(--muted); font-weight:500;
   }
   .status-row b{ color:var(--ink); }
+  .streak-indicator b{ color:var(--accent); }
  
   .flag-stage{
     position:relative; width:100%; aspect-ratio:3/2;
@@ -125,10 +127,12 @@
   <header>
     <h1>FLAGLE REDUX</h1>
     <p class="subtitle">Guess the country from its flag</p>
+    <p class="credit">Created by Crypt and Inco </p>
   </header>
  
   <div class="status-row">
     <span>Guess <b id="guessCount">0</b>/6</span>
+    <span class="streak-indicator">🔥 Streak: <b id="streakCount">0</b></span>
     <span id="statusText">Segments hidden</span>
   </div>
  
@@ -371,11 +375,13 @@ const FLAGS = [
  
 const MAX_TRIES = 6;
 let current, tries, guessed, tileOrder;
+let streak = parseInt(localStorage.getItem('flagleStreak') || '0', 10) || 0;
  
 const flagFull = document.getElementById('flagFull');
 const flagStage = document.querySelector('.flag-stage');
 const tilesGrid = document.getElementById('tilesGrid');
 const guessCount = document.getElementById('guessCount');
+const streakCount = document.getElementById('streakCount');
 const statusText = document.getElementById('statusText');
 const message = document.getElementById('message');
 const historyEl = document.getElementById('history');
@@ -384,6 +390,11 @@ const form = document.getElementById('guessForm');
 const input = document.getElementById('guessInput');
 const newGameBtn = document.getElementById('newGameBtn');
 const datalist = document.getElementById('countryList');
+ 
+function updateStreakDisplay(){
+  streakCount.textContent = streak;
+}
+updateStreakDisplay();
  
 datalist.innerHTML = FLAGS.map(f => `<option value="${f.name}">`).join('');
  
