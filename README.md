@@ -1,1 +1,496 @@
-# completedeception.github.io
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Flagle Redux — Guess the Flag</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
+ 
+  :root{
+    --bg:#f5f3ee;
+    --card:#ffffff;
+    --border:#e4e0d4;
+    --ink:#20232b;
+    --muted:#767268;
+    --accent:#b9812f;
+    --accent-dark:#8a6122;
+    --wrong:#c0392b;
+    --right:#3f8a4c;
+    --tile-back:#2c2f38;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:var(--bg);
+    color:var(--ink); font-family:'Inter', sans-serif;
+    display:flex; justify-content:center; padding:36px 16px;
+  }
+  .card{ width:100%; max-width:460px; }
+  header{ text-align:center; margin-bottom:20px; }
+  h1{
+    font-family:'Cinzel', serif; font-size:1.9rem; letter-spacing:1.5px;
+    margin:0 0 4px; color:var(--ink);
+  }
+  .subtitle{ margin:0; color:var(--muted); font-size:0.92rem; }
+ 
+  .status-row{
+    display:flex; justify-content:space-between; align-items:center;
+    margin:18px 0 10px; font-size:0.88rem; color:var(--muted); font-weight:500;
+  }
+  .status-row b{ color:var(--ink); }
+ 
+  .flag-stage{
+    position:relative; width:100%; aspect-ratio:3/2;
+    border-radius:10px; overflow:hidden; border:1px solid var(--border);
+    box-shadow:0 6px 20px rgba(20,20,20,0.08);
+    background:#111;
+  }
+  .flag-full{ position:absolute; inset:0; }
+  .flag-full img{ width:100%; height:100%; display:block; object-fit:cover; }
+ 
+  .tiles-grid{
+    position:absolute; inset:0; display:grid;
+    grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr);
+    gap:0;
+  }
+  .tile{ perspective:700px; overflow:hidden; }
+  .tile-inner{
+    position:relative; width:100%; height:100%;
+    transform-style:preserve-3d; transition:transform 0.65s cubic-bezier(.4,.2,.2,1);
+  }
+  .tile-inner.flipped{ transform:rotateY(180deg); }
+  .tile-face{
+    position:absolute; inset:0; backface-visibility:hidden;
+  }
+  .tile-front{
+    background:linear-gradient(135deg, var(--tile-back), #1a1c22);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .tile-front::after{
+    content:'?'; font-family:'Cinzel', serif; font-size:1.3rem;
+    color:rgba(201,162,75,0.55);
+  }
+  .tile-back{ transform:rotateY(180deg); background:transparent; }
+ 
+  .guess-row{ display:flex; gap:8px; margin:18px 0 8px; }
+  input[type=text]{
+    flex:1; padding:11px 14px; font-size:1rem; font-family:inherit;
+    border-radius:8px; border:1px solid var(--border);
+    background:#fff; color:var(--ink);
+  }
+  input[type=text]:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  input[type=text]:disabled{ background:#f0efe9; color:var(--muted); }
+  button{
+    font-family:'Inter', sans-serif; font-weight:700; font-size:0.92rem;
+    padding:11px 18px; border-radius:8px; border:none;
+    background:var(--accent); color:#fff; cursor:pointer;
+  }
+  button:hover:not(:disabled){ background:var(--accent-dark); }
+  button:disabled{ background:#ddd8ca; cursor:default; }
+  button.secondary{
+    background:transparent; color:var(--accent-dark); border:1px solid var(--accent-dark);
+    width:100%; margin-top:14px; padding:10px;
+  }
+  button.secondary:hover{ background:rgba(185,129,47,0.08); }
+ 
+  .message{ min-height:28px; margin:6px 0 14px; font-size:0.95rem; font-weight:500; }
+  .message.wrong{ color:var(--wrong); }
+  .message.right{ color:var(--right); }
+  .message.hint{ color:var(--muted); font-style:italic; font-weight:400; }
+ 
+  .history{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px; }
+  .history li{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:9px 12px; border-radius:7px; font-size:0.92rem;
+    background:#fbeceb; border:1px solid #f0d3d1; color:#7a2b2b;
+  }
+  .history li.correct{ background:#eaf5ec; border-color:#cfe8d3; color:#2c5c34; }
+  .history li span.mark{ font-weight:700; }
+ 
+  .reveal-box{
+    text-align:center; margin-top:6px; padding:14px; border-radius:8px;
+    background:#faf7ef; border:1px solid var(--border);
+  }
+  .reveal-box .name{ font-family:'Cinzel', serif; color:var(--accent-dark); font-size:1.15rem; }
+  .reveal-box .region{ color:var(--muted); font-size:0.88rem; margin-top:2px; }
+ 
+  .load-error{
+    text-align:center; padding:16px; color:var(--wrong); font-size:0.9rem;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <header>
+    <h1>FLAGLE REDUX</h1>
+    <p class="subtitle">Guess the country from its flag</p>
+  </header>
+ 
+  <div class="status-row">
+    <span>Guess <b id="guessCount">0</b>/6</span>
+    <span id="statusText">Segments hidden</span>
+  </div>
+ 
+  <div class="flag-stage">
+    <div class="flag-full" id="flagFull"></div>
+    <div class="tiles-grid" id="tilesGrid"></div>
+  </div>
+ 
+  <form class="guess-row" id="guessForm" autocomplete="off">
+    <input type="text" id="guessInput" list="countryList" placeholder="Name the country..." />
+    <datalist id="countryList"></datalist>
+    <button type="submit">Guess</button>
+  </form>
+ 
+  <div class="message" id="message"></div>
+ 
+  <ul class="history" id="history"></ul>
+  <div class="reveal-box" id="revealBox" style="display:none;"></div>
+ 
+  <button class="secondary" id="newGameBtn" style="display:none;">⟳ New Flag</button>
+</div>
+ 
+<script>
+/* ============================================================
+   FLAG LIBRARY — add your own flags here.
+ 
+   Each entry needs:
+     name   – what the player must type to win
+     region – shown as a hint after 2 wrong guesses
+     file   – path to the image (local file or a URL)
+ 
+   TO ADD YOUR OWN FLAG IMAGE:
+     1. Put the image file (jpg/png/webp/svg) in a folder called
+        "flags" next to this html file, e.g. flags/my-flag.png
+     2. Add a line below:
+        { name: "My Country", region: "My Region", file: "flags/my-flag.png" },
+     3. Save and reload the page. That's it — no other code changes needed.
+ 
+   The starter list below points to flagcdn.com (a free public flag
+   image service) so the game works immediately. Feel free to delete
+   any of these and replace them with your own local files.
+   ============================================================ */
+const FLAGS = [
+  { name: "South Korea", region: "Asia", file: "https://flagcdn.com/w320/kr.png" },
+  { name: "Cambodia", region: "Asia", file: "https://flagcdn.com/w320/kh.png" },
+  { name: "Seychelles", region: "Africa", file: "https://flagcdn.com/w320/sc.png" },
+  { name: "Egypt", region: "Africa", file: "https://flagcdn.com/w320/eg.png" },
+  { name: "Dominica", region: "North America", file: "https://flagcdn.com/w320/dm.png" },
+  { name: "Angola", region: "Africa", file: "https://flagcdn.com/w320/ao.png" },
+  { name: "Papua New Guinea", region: "Oceania", file: "https://flagcdn.com/w320/pg.png" },
+  { name: "Azerbaijan", region: "Asia", file: "https://flagcdn.com/w320/az.png" },
+  { name: "Spain", region: "Europe", file: "https://flagcdn.com/w320/es.png" },
+  { name: "Montenegro", region: "Europe", file: "https://flagcdn.com/w320/me.png" },
+  { name: "Cyprus", region: "Europe", file: "https://flagcdn.com/w320/cy.png" },
+  { name: "Bhutan", region: "Asia", file: "https://flagcdn.com/w320/bt.png" },
+  { name: "Namibia", region: "Africa", file: "https://flagcdn.com/w320/na.png" },
+  { name: "Uganda", region: "Africa", file: "https://flagcdn.com/w320/ug.png" },
+  { name: "Laos", region: "Asia", file: "https://flagcdn.com/w320/la.png" },
+  { name: "Saint Lucia", region: "North America", file: "https://flagcdn.com/w320/lc.png" },
+  { name: "Bahrain", region: "Asia", file: "https://flagcdn.com/w320/bh.png" },
+  { name: "Jamaica", region: "North America", file: "https://flagcdn.com/w320/jm.png" },
+  { name: "Chile", region: "South America", file: "https://flagcdn.com/w320/cl.png" },
+  { name: "Barbados", region: "North America", file: "https://flagcdn.com/w320/bb.png" },
+  { name: "Estonia", region: "Europe", file: "https://flagcdn.com/w320/ee.png" },
+  { name: "Algeria", region: "Africa", file: "https://flagcdn.com/w320/dz.png" },
+  { name: "Eritrea", region: "Africa", file: "https://flagcdn.com/w320/er.png" },
+  { name: "Japan", region: "Asia", file: "https://flagcdn.com/w320/jp.png" },
+  { name: "Austria", region: "Europe", file: "https://flagcdn.com/w320/at.png" },
+  { name: "Colombia", region: "South America", file: "https://flagcdn.com/w320/co.png" },
+  { name: "Guyana", region: "South America", file: "https://flagcdn.com/w320/gy.png" },
+  { name: "India", region: "Asia", file: "https://flagcdn.com/w320/in.png" },
+  { name: "Libya", region: "Africa", file: "https://flagcdn.com/w320/ly.png" },
+  { name: "Panama", region: "North America", file: "https://flagcdn.com/w320/pa.png" },
+  { name: "Vietnam", region: "Asia", file: "https://flagcdn.com/w320/vn.png" },
+  { name: "Somalia", region: "Africa", file: "https://flagcdn.com/w320/so.png" },
+  { name: "Portugal", region: "Europe", file: "https://flagcdn.com/w320/pt.png" },
+  { name: "Switzerland", region: "Europe", file: "https://flagcdn.com/w320/ch.png" },
+  { name: "Tunisia", region: "Africa", file: "https://flagcdn.com/w320/tn.png" },
+  { name: "Trinidad and Tobago", region: "North America", file: "https://flagcdn.com/w320/tt.png" },
+  { name: "Mongolia", region: "Asia", file: "https://flagcdn.com/w320/mn.png" },
+  { name: "Kyrgyzstan", region: "Asia", file: "https://flagcdn.com/w320/kg.png" },
+  { name: "Germany", region: "Europe", file: "https://flagcdn.com/w320/de.png" },
+  { name: "Czechia", region: "Europe", file: "https://flagcdn.com/w320/cz.png" },
+  { name: "Kuwait", region: "Asia", file: "https://flagcdn.com/w320/kw.png" },
+  { name: "Mexico", region: "North America", file: "https://flagcdn.com/w320/mx.png" },
+  { name: "Afghanistan", region: "Asia", file: "https://flagcdn.com/w320/af.png" },
+  { name: "Nicaragua", region: "North America", file: "https://flagcdn.com/w320/ni.png" },
+  { name: "Argentina", region: "South America", file: "https://flagcdn.com/w320/ar.png" },
+  { name: "Belgium", region: "Europe", file: "https://flagcdn.com/w320/be.png" },
+  { name: "Belize", region: "North America", file: "https://flagcdn.com/w320/bz.png" },
+  { name: "Burkina Faso", region: "Africa", file: "https://flagcdn.com/w320/bf.png" },
+  { name: "Burundi", region: "Africa", file: "https://flagcdn.com/w320/bi.png" },
+  { name: "Central African Republic", region: "Africa", file: "https://flagcdn.com/w320/cf.png" },
+  { name: "Cote d'Ivoire", region: "Africa", file: "https://flagcdn.com/w320/ci.png" },
+  { name: "Ireland", region: "Europe", file: "https://flagcdn.com/w320/ie.png" },
+  { name: "Costa Rica", region: "North America", file: "https://flagcdn.com/w320/cr.png" },
+  { name: "Qatar", region: "Asia", file: "https://flagcdn.com/w320/qa.png" },
+  { name: "Croatia", region: "Europe", file: "https://flagcdn.com/w320/hr.png" },
+  { name: "Malawi", region: "Africa", file: "https://flagcdn.com/w320/mw.png" },
+  { name: "Micronesia", region: "Oceania", file: "https://flagcdn.com/w320/fm.png" },
+  { name: "Norway", region: "Europe", file: "https://flagcdn.com/w320/no.png" },
+  { name: "Denmark", region: "Europe", file: "https://flagcdn.com/w320/dk.png" },
+  { name: "Finland", region: "Europe", file: "https://flagcdn.com/w320/fi.png" },
+  { name: "Palau", region: "Oceania", file: "https://flagcdn.com/w320/pw.png" },
+  { name: "Gambia", region: "Africa", file: "https://flagcdn.com/w320/gm.png" },
+  { name: "Bahamas", region: "North America", file: "https://flagcdn.com/w320/bs.png" },
+  { name: "Greece", region: "Europe", file: "https://flagcdn.com/w320/gr.png" },
+  { name: "Kazakhstan", region: "Asia", file: "https://flagcdn.com/w320/kz.png" },
+  { name: "Kenya", region: "Africa", file: "https://flagcdn.com/w320/ke.png" },
+  { name: "North Korea", region: "Asia", file: "https://flagcdn.com/w320/kp.png" },
+  { name: "Latvia", region: "Europe", file: "https://flagcdn.com/w320/lv.png" },
+  { name: "Morocco", region: "Africa", file: "https://flagcdn.com/w320/ma.png" },
+  { name: "North Macedonia", region: "Europe", file: "https://flagcdn.com/w320/mk.png" },
+  { name: "Philippines", region: "Asia", file: "https://flagcdn.com/w320/ph.png" },
+  { name: "Tanzania", region: "Africa", file: "https://flagcdn.com/w320/tz.png" },
+  { name: "Saint Kitts and Nevis", region: "North America", file: "https://flagcdn.com/w320/kn.png" },
+  { name: "Saint Vincent and the Grenadines", region: "North America", file: "https://flagcdn.com/w320/vc.png" },
+  { name: "Samoa", region: "Oceania", file: "https://flagcdn.com/w320/ws.png" },
+  { name: "South Africa", region: "Africa", file: "https://flagcdn.com/w320/za.png" },
+  { name: "Sweden", region: "Europe", file: "https://flagcdn.com/w320/se.png" },
+  { name: "Uruguay", region: "South America", file: "https://flagcdn.com/w320/uy.png" },
+  { name: "Zambia", region: "Africa", file: "https://flagcdn.com/w320/zm.png" },
+  { name: "Thailand", region: "Asia", file: "https://flagcdn.com/w320/th.png" },
+  { name: "Cuba", region: "North America", file: "https://flagcdn.com/w320/cu.png" },
+  { name: "Armenia", region: "Asia", file: "https://flagcdn.com/w320/am.png" },
+  { name: "Bolivia", region: "South America", file: "https://flagcdn.com/w320/bo.png" },
+  { name: "Jordan", region: "Asia", file: "https://flagcdn.com/w320/jo.png" },
+  { name: "Botswana", region: "Africa", file: "https://flagcdn.com/w320/bw.png" },
+  { name: "Cape Verde", region: "Africa", file: "https://flagcdn.com/w320/cv.png" },
+  { name: "Romania", region: "Europe", file: "https://flagcdn.com/w320/ro.png" },
+  { name: "Chad", region: "Africa", file: "https://flagcdn.com/w320/td.png" },
+  { name: "France", region: "Europe", file: "https://flagcdn.com/w320/fr.png" },
+  { name: "Mauritius", region: "Africa", file: "https://flagcdn.com/w320/mu.png" },
+  { name: "Haiti", region: "North America", file: "https://flagcdn.com/w320/ht.png" },
+  { name: "Gabon", region: "Africa", file: "https://flagcdn.com/w320/ga.png" },
+  { name: "Ghana", region: "Africa", file: "https://flagcdn.com/w320/gh.png" },
+  { name: "Guinea", region: "Africa", file: "https://flagcdn.com/w320/gn.png" },
+  { name: "Senegal", region: "Africa", file: "https://flagcdn.com/w320/sn.png" },
+  { name: "Cameroon", region: "Africa", file: "https://flagcdn.com/w320/cm.png" },
+  { name: "Mali", region: "Africa", file: "https://flagcdn.com/w320/ml.png" },
+  { name: "Benin", region: "Africa", file: "https://flagcdn.com/w320/bj.png" },
+  { name: "Lithuania", region: "Europe", file: "https://flagcdn.com/w320/lt.png" },
+  { name: "Guinea-Bissau", region: "Africa", file: "https://flagcdn.com/w320/gw.png" },
+  { name: "Sao Tome and Principe", region: "Africa", file: "https://flagcdn.com/w320/st.png" },
+  { name: "Republic of the Congo", region: "Africa", file: "https://flagcdn.com/w320/cg.png" },
+  { name: "Myanmar", region: "Asia", file: "https://flagcdn.com/w320/mm.png" },
+  { name: "Comoros", region: "Africa", file: "https://flagcdn.com/w320/km.png" },
+  { name: "Lebanon", region: "Asia", file: "https://flagcdn.com/w320/lb.png" },
+  { name: "Indonesia", region: "Asia", file: "https://flagcdn.com/w320/id.png" },
+  { name: "Iran", region: "Asia", file: "https://flagcdn.com/w320/ir.png" },
+  { name: "Italy", region: "Europe", file: "https://flagcdn.com/w320/it.png" },
+  { name: "Liberia", region: "Africa", file: "https://flagcdn.com/w320/lr.png" },
+  { name: "Lesotho", region: "Africa", file: "https://flagcdn.com/w320/ls.png" },
+  { name: "Luxembourg", region: "Europe", file: "https://flagcdn.com/w320/lu.png" },
+  { name: "Madagascar", region: "Africa", file: "https://flagcdn.com/w320/mg.png" },
+  { name: "Malaysia", region: "Asia", file: "https://flagcdn.com/w320/my.png" },
+  { name: "Mauritania", region: "Africa", file: "https://flagcdn.com/w320/mr.png" },
+  { name: "Moldova", region: "Europe", file: "https://flagcdn.com/w320/md.png" },
+  { name: "Monaco", region: "Europe", file: "https://flagcdn.com/w320/mc.png" },
+  { name: "Mozambique", region: "Africa", file: "https://flagcdn.com/w320/mz.png" },
+  { name: "Niger", region: "Africa", file: "https://flagcdn.com/w320/ne.png" },
+  { name: "Netherlands", region: "Europe", file: "https://flagcdn.com/w320/nl.png" },
+  { name: "Nigeria", region: "Africa", file: "https://flagcdn.com/w320/ng.png" },
+  { name: "Oman", region: "Asia", file: "https://flagcdn.com/w320/om.png" },
+  { name: "Paraguay", region: "South America", file: "https://flagcdn.com/w320/py.png" },
+  { name: "Poland", region: "Europe", file: "https://flagcdn.com/w320/pl.png" },
+  { name: "Russia", region: "Europe / Asia", file: "https://flagcdn.com/w320/ru.png" },
+  { name: "Peru", region: "South America", file: "https://flagcdn.com/w320/pe.png" },
+  { name: "Serbia", region: "Europe", file: "https://flagcdn.com/w320/rs.png" },
+  { name: "Sierra Leone", region: "Africa", file: "https://flagcdn.com/w320/sl.png" },
+  { name: "United Arab Emirates", region: "Asia", file: "https://flagcdn.com/w320/ae.png" },
+  { name: "Slovakia", region: "Europe", file: "https://flagcdn.com/w320/sk.png" },
+  { name: "Slovenia", region: "Europe", file: "https://flagcdn.com/w320/si.png" },
+  { name: "South Sudan", region: "Africa", file: "https://flagcdn.com/w320/ss.png" },
+  { name: "Sudan", region: "Africa", file: "https://flagcdn.com/w320/sd.png" },
+  { name: "Suriname", region: "South America", file: "https://flagcdn.com/w320/sr.png" },
+  { name: "Syria", region: "Asia", file: "https://flagcdn.com/w320/sy.png" },
+  { name: "Tajikistan", region: "Asia", file: "https://flagcdn.com/w320/tj.png" },
+  { name: "Togo", region: "Africa", file: "https://flagcdn.com/w320/tg.png" },
+  { name: "Ukraine", region: "Europe", file: "https://flagcdn.com/w320/ua.png" },
+  { name: "Uzbekistan", region: "Asia", file: "https://flagcdn.com/w320/uz.png" },
+  { name: "Venezuela", region: "South America", file: "https://flagcdn.com/w320/ve.png" },
+  { name: "Yemen", region: "Asia", file: "https://flagcdn.com/w320/ye.png" },
+  { name: "Zimbabwe", region: "Africa", file: "https://flagcdn.com/w320/zw.png" },
+  { name: "Malta", region: "Europe", file: "https://flagcdn.com/w320/mt.png" },
+  { name: "Georgia", region: "Asia", file: "https://flagcdn.com/w320/ge.png" },
+  { name: "Saudi Arabia", region: "Asia", file: "https://flagcdn.com/w320/sa.png" },
+  { name: "Bangladesh", region: "Asia", file: "https://flagcdn.com/w320/bd.png" },
+  { name: "Pakistan", region: "Asia", file: "https://flagcdn.com/w320/pk.png" },
+  { name: "El Salvador", region: "North America", file: "https://flagcdn.com/w320/sv.png" },
+  { name: "Canada", region: "North America", file: "https://flagcdn.com/w320/ca.png" },
+  { name: "Djibouti", region: "Africa", file: "https://flagcdn.com/w320/dj.png" },
+  { name: "Israel", region: "Asia", file: "https://flagcdn.com/w320/il.png" },
+  { name: "Albania", region: "Europe", file: "https://flagcdn.com/w320/al.png" },
+  { name: "China", region: "Asia", file: "https://flagcdn.com/w320/cn.png" },
+  { name: "Belarus", region: "Europe", file: "https://flagcdn.com/w320/by.png" },
+  { name: "Andorra", region: "Europe", file: "https://flagcdn.com/w320/ad.png" },
+  { name: "Brazil", region: "South America", file: "https://flagcdn.com/w320/br.png" },
+  { name: "Antigua and Barbuda", region: "North America", file: "https://flagcdn.com/w320/ag.png" },
+  { name: "DR Congo", region: "Africa", file: "https://flagcdn.com/w320/cd.png" },
+  { name: "Dominican Republic", region: "North America", file: "https://flagcdn.com/w320/do.png" },
+  { name: "Ecuador", region: "South America", file: "https://flagcdn.com/w320/ec.png" },
+  { name: "Eswatini", region: "Africa", file: "https://flagcdn.com/w320/sz.png" },
+  { name: "Guatemala", region: "North America", file: "https://flagcdn.com/w320/gt.png" },
+  { name: "Honduras", region: "North America", file: "https://flagcdn.com/w320/hn.png" },
+  { name: "Kiribati", region: "Oceania", file: "https://flagcdn.com/w320/ki.png" },
+  { name: "Liechtenstein", region: "Europe", file: "https://flagcdn.com/w320/li.png" },
+  { name: "Maldives", region: "Asia", file: "https://flagcdn.com/w320/mv.png" },
+  { name: "Nauru", region: "Oceania", file: "https://flagcdn.com/w320/nr.png" },
+  { name: "Rwanda", region: "Africa", file: "https://flagcdn.com/w320/rw.png" },
+  { name: "San Marino", region: "Europe", file: "https://flagcdn.com/w320/sm.png" },
+  { name: "Singapore", region: "Asia", file: "https://flagcdn.com/w320/sg.png" },
+  { name: "Timor-Leste", region: "Asia", file: "https://flagcdn.com/w320/tl.png" },
+  { name: "Solomon Islands", region: "Oceania", file: "https://flagcdn.com/w320/sb.png" },
+  { name: "Tonga", region: "Oceania", file: "https://flagcdn.com/w320/to.png" },
+  { name: "Turkey", region: "Europe / Asia", file: "https://flagcdn.com/w320/tr.png" },
+  { name: "Vanuatu", region: "Oceania", file: "https://flagcdn.com/w320/vu.png" },
+  { name: "United Kingdom", region: "Europe", file: "https://flagcdn.com/w320/gb.png" },
+  { name: "New Zealand", region: "Oceania", file: "https://flagcdn.com/w320/nz.png" },
+  { name: "Australia", region: "Oceania", file: "https://flagcdn.com/w320/au.png" },
+  { name: "Tuvalu", region: "Oceania", file: "https://flagcdn.com/w320/tv.png" },
+  { name: "Grenada", region: "North America", file: "https://flagcdn.com/w320/gd.png" },
+  { name: "Bosnia and Herzegovina", region: "Europe", file: "https://flagcdn.com/w320/ba.png" },
+  { name: "Equatorial Guinea", region: "Africa", file: "https://flagcdn.com/w320/gq.png" },
+  { name: "Sri Lanka", region: "Asia", file: "https://flagcdn.com/w320/lk.png" },
+  { name: "United States", region: "North America", file: "https://flagcdn.com/w320/us.png" },
+  { name: "Turkmenistan", region: "Asia", file: "https://flagcdn.com/w320/tm.png" },
+  { name: "Marshall Islands", region: "Oceania", file: "https://flagcdn.com/w320/mh.png" },
+  { name: "Nepal", region: "Asia", file: "https://flagcdn.com/w320/np.png" },
+ 
+  // Example of a locally-added flag (uncomment once you add the file):
+  // { name: "My Country", region: "My Region", file: "flags/my-flag.png" },
+];
+ 
+const MAX_TRIES = 6;
+let current, tries, guessed, tileOrder;
+ 
+const flagFull = document.getElementById('flagFull');
+const tilesGrid = document.getElementById('tilesGrid');
+const guessCount = document.getElementById('guessCount');
+const statusText = document.getElementById('statusText');
+const message = document.getElementById('message');
+const historyEl = document.getElementById('history');
+const revealBox = document.getElementById('revealBox');
+const form = document.getElementById('guessForm');
+const input = document.getElementById('guessInput');
+const newGameBtn = document.getElementById('newGameBtn');
+const datalist = document.getElementById('countryList');
+ 
+datalist.innerHTML = FLAGS.map(f => `<option value="${f.name}">`).join('');
+ 
+function shuffledIndices(n){
+  const arr = [...Array(n).keys()];
+  for(let i = arr.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+ 
+function buildTiles(){
+  tilesGrid.innerHTML = '';
+  for(let i = 0; i < 6; i++){
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    tile.innerHTML = `
+      <div class="tile-inner" id="tile-${i}">
+        <div class="tile-face tile-front"></div>
+        <div class="tile-face tile-back"></div>
+      </div>`;
+    tilesGrid.appendChild(tile);
+  }
+}
+ 
+function startGame(){
+  if(!FLAGS.length){
+    flagFull.innerHTML = `<div class="load-error">No flags configured. Add entries to the FLAGS array in the code.</div>`;
+    return;
+  }
+  current = FLAGS[Math.floor(Math.random() * FLAGS.length)];
+  tries = 0; guessed = false;
+  tileOrder = shuffledIndices(6);
+ 
+  flagFull.innerHTML = `<img src="${current.file}" alt="Flag to guess" onerror="this.parentElement.innerHTML='<div class=\\'load-error\\'>Could not load image:<br>${current.file}</div>'">`;
+  buildTiles();
+ 
+  guessCount.textContent = '0';
+  statusText.textContent = 'All segments hidden';
+  message.className = 'message';
+  message.textContent = 'Which country flies this flag?';
+  historyEl.innerHTML = '';
+  revealBox.style.display = 'none';
+  input.value = '';
+  input.disabled = false;
+  form.querySelector('button').disabled = false;
+  newGameBtn.style.display = 'none';
+  input.focus();
+}
+ 
+function flipNextTile(){
+  if(tries === 0) return;
+  const idx = tileOrder[tries - 1];
+  const el = document.getElementById('tile-' + idx);
+  if(el) el.classList.add('flipped');
+}
+ 
+function flipAllTiles(){
+  tileOrder.forEach(idx => {
+    const el = document.getElementById('tile-' + idx);
+    if(el) el.classList.add('flipped');
+  });
+}
+ 
+function endGame(won){
+  guessed = true;
+  input.disabled = true;
+  form.querySelector('button').disabled = true;
+  flipAllTiles();
+  statusText.textContent = 'Fully revealed';
+  message.className = 'message ' + (won ? 'right' : 'wrong');
+  message.textContent = won ? '✓ Correct!' : '✕ Out of tries.';
+  revealBox.style.display = 'block';
+  revealBox.innerHTML = `<div class="name">${current.name}</div><div class="region">${current.region}</div>`;
+  newGameBtn.style.display = 'block';
+}
+ 
+form.addEventListener('submit', e => {
+  e.preventDefault();
+  if(guessed) return;
+  const val = input.value.trim();
+  if(!val) return;
+  const correct = val.toLowerCase() === current.name.toLowerCase();
+  tries++;
+ 
+  const li = document.createElement('li');
+  li.innerHTML = `<span>${val}</span><span class="mark">${correct ? '✓' : '✕'}</span>`;
+  if(correct) li.classList.add('correct');
+  historyEl.prepend(li);
+  input.value = '';
+ 
+  flipNextTile();
+  guessCount.textContent = tries;
+  statusText.textContent = tries >= 6 ? 'Fully revealed' : `${6 - tries} segment${6 - tries === 1 ? '' : 's'} still hidden`;
+ 
+  if(correct){
+    endGame(true);
+    return;
+  }
+ 
+  if(tries >= MAX_TRIES){
+    endGame(false);
+  } else if(tries === 2){
+    message.className = 'message hint';
+    message.textContent = `Hint: this flag belongs to a country in ${current.region}.`;
+  } else {
+    message.className = 'message wrong';
+    message.textContent = 'Not quite — another segment is revealed.';
+  }
+});
+ 
+newGameBtn.addEventListener('click', startGame);
+ 
+startGame();
+</script>
+</body>
+</html>
