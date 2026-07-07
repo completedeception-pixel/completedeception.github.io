@@ -127,7 +127,7 @@
   <header>
     <h1>FLAGLE 2</h1>
     <p class="subtitle">Guess the country from its flag</p>
-    <p class="credit">Created by Crypt and Inco</p>
+    <p class="credit">Created by Your Name</p>
   </header>
  
   <div class="status-row">
@@ -375,7 +375,8 @@ const FLAGS = [
  
 const MAX_TRIES = 6;
 let current, tries, guessed, tileOrder;
-let streak = parseInt(localStorage.getItem('flagleStreak') || '0', 10) || 0;
+let streak = 0;
+try{ streak = parseInt(localStorage.getItem('flagleStreak') || '0', 10) || 0; }catch(e){ /* storage unavailable — start at 0 */ }
  
 const flagFull = document.getElementById('flagFull');
 const flagStage = document.querySelector('.flag-stage');
@@ -489,8 +490,8 @@ function endGame(won){
   statusText.textContent = 'Fully revealed';
  
   streak = won ? streak + 1 : 0;
-  localStorage.setItem('flagleStreak', streak);
   updateStreakDisplay();
+  try{ localStorage.setItem('flagleStreak', streak); }catch(e){ /* storage unavailable — streak still works this session */ }
  
   message.className = 'message ' + (won ? 'right' : 'wrong');
   message.textContent = won ? '✓ Correct!' : '';
@@ -539,3 +540,4 @@ startGame();
 </script>
 </body>
 </html>
+ 
