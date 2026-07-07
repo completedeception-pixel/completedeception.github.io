@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Flagle Redux — Guess the Flag</title>
+<title>Flagle 2 — Guess the Flag </title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
  
@@ -43,6 +43,7 @@
     border-radius:10px; overflow:hidden; border:1px solid var(--border);
     box-shadow:0 6px 20px rgba(20,20,20,0.08);
     background:#111;
+    transition:aspect-ratio 0.25s ease;
   }
   .flag-full{ position:absolute; inset:0; }
   .flag-full img{ width:100%; height:100%; display:block; object-fit:cover; }
@@ -372,6 +373,7 @@ const MAX_TRIES = 6;
 let current, tries, guessed, tileOrder;
  
 const flagFull = document.getElementById('flagFull');
+const flagStage = document.querySelector('.flag-stage');
 const tilesGrid = document.getElementById('tilesGrid');
 const guessCount = document.getElementById('guessCount');
 const statusText = document.getElementById('statusText');
@@ -417,10 +419,15 @@ function startGame(){
   tries = 0; guessed = false;
   tileOrder = shuffledIndices(6);
  
+  flagStage.style.aspectRatio = '3 / 2'; // reset to default while the real one loads
   flagFull.innerHTML = '';
   const img = document.createElement('img');
   img.alt = 'Flag to guess';
   img.src = current.file;
+  img.onload = () => {
+    const w = img.naturalWidth, h = img.naturalHeight;
+    if(w && h) flagStage.style.aspectRatio = `${w} / ${h}`;
+  };
   img.onerror = () => {
     // Primary image failed — if it's a flagcdn.com URL, try a second,
     // independent CDN (jsDelivr's flag-icons package) before giving up.
@@ -433,6 +440,7 @@ function startGame(){
     flagFull.innerHTML = `<div class="load-error">Could not load image:<br>${current.file}</div>`;
   };
   flagFull.appendChild(img);
+  if(img.complete && img.naturalWidth) img.onload(); // already cached
   buildTiles();
  
   guessCount.textContent = '0';
