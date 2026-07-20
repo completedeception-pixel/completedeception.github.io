@@ -1,192 +1,420 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Flagle 2 — Guess the Flag</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flagle 2 — Guess the Flag</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
  
-  :root{
-    --bg:#14151a;
-    --card:#1c1e26;
-    --border:#33353f;
-    --ink:#eae8e1;
-    --muted:#9b988e;
-    --accent:#d9a84a;
-    --accent-dark:#f0bf63;
-    --wrong:#e0574a;
-    --right:#4fcf85;
-    --tile-back:#2c2f38;
-  }
-  *{box-sizing:border-box;}
-  body{
-    margin:0; min-height:100vh; background:var(--bg);
-    color:var(--ink); font-family:'JetBrains Mono', monospace;
-    display:flex; justify-content:center; padding:36px 16px;
-  }
-  .card{ width:100%; max-width:460px; }
-  header{ text-align:center; margin-bottom:20px; }
-  h1{
-    font-family:'JetBrains Mono', monospace; font-weight:700; font-size:1.9rem; letter-spacing:0.5px;
-    margin:0 0 4px; color:var(--ink);
-  }
-  .subtitle{ margin:0; color:var(--muted); font-size:0.92rem; }
-  .credit{ margin:6px 0 0; color:var(--muted); font-size:0.78rem; opacity:0.75; }
+    /* -----------------------------------------------------------
+       Design tokens
+    ----------------------------------------------------------- */
+    :root {
+      --bg: #14151a;
+      --card: #1c1e26;
+      --border: #33353f;
+      --ink: #eae8e1;
+      --muted: #9b988e;
+      --accent: #d9a84a;
+      --accent-dark: #f0bf63;
+      --wrong: #e0574a;
+      --right: #4fcf85;
+      --tile-back: #2c2f38;
  
-  .status-row{
-    display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center;
-    gap:6px 14px; margin:18px 0 10px; font-size:0.88rem; color:var(--muted); font-weight:500;
-  }
-  .status-row b{ color:var(--ink); }
-  .streak-indicator b{ color:var(--accent); }
+      --font-mono: 'JetBrains Mono', monospace;
+      --radius-sm: 7px;
+      --radius-md: 8px;
+      --radius-lg: 10px;
+    }
  
-  .flag-stage{
-    position:relative; width:100%; aspect-ratio:3/2;
-    border-radius:10px; overflow:hidden; border:1px solid var(--border);
-    box-shadow:0 6px 20px rgba(20,20,20,0.08);
-    background:#111;
-    transition:aspect-ratio 0.25s ease;
-  }
-  .flag-full{ position:absolute; inset:0; }
-  .flag-full img{ width:100%; height:100%; display:block; object-fit:cover; }
+    /* -----------------------------------------------------------
+       Reset & base
+    ----------------------------------------------------------- */
+    * {
+      box-sizing: border-box;
+    }
  
-  .tiles-grid{
-    position:absolute; inset:0; display:grid;
-    grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(2,1fr);
-    gap:0;
-  }
-  .tile{ perspective:700px; overflow:hidden; }
-  .tile-inner{
-    position:relative; width:100%; height:100%;
-    transform-style:preserve-3d; transition:transform 0.65s cubic-bezier(.4,.2,.2,1);
-  }
-  .tile-inner.flipped{ transform:rotateY(180deg); }
-  .tile-face{
-    position:absolute; inset:0; backface-visibility:hidden;
-  }
-  .tile-front{
-    background:linear-gradient(135deg, var(--tile-back), #1a1c22);
-    display:flex; align-items:center; justify-content:center;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
-  }
-  .tile-front::after{
-    content:'?'; font-family:'JetBrains Mono', monospace; font-weight:700; font-size:1.3rem;
-    color:rgba(201,162,75,0.55);
-  }
-  .tile-back{ transform:rotateY(180deg); background:transparent; }
+    body {
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 36px 16px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-mono);
+    }
  
-  .guess-row{ display:flex; gap:8px; margin:18px 0 8px; }
-  input[type=text]{
-    flex:1; padding:11px 14px; font-size:1rem; font-family:inherit;
-    border-radius:8px; border:1px solid var(--border);
-    background:var(--card); color:var(--ink);
-  }
-  input[type=text]:focus{ outline:2px solid var(--accent); outline-offset:1px; }
-  input[type=text]:disabled{ background:#22232b; color:var(--muted); }
-  button{
-    font-family:'JetBrains Mono', monospace; font-weight:700; font-size:0.92rem;
-    padding:11px 18px; border-radius:8px; border:none;
-    background:var(--accent); color:#1c1a12; cursor:pointer;
-  }
-  button:hover:not(:disabled){ background:var(--accent-dark); }
-  button:disabled{ background:#3a3b42; color:#7a7870; cursor:default; }
-  button.secondary{
-    background:transparent; color:var(--accent-dark); border:1px solid var(--accent-dark);
-    width:100%; margin-top:14px; padding:10px;
-  }
-  button.secondary:hover{ background:rgba(217,168,74,0.1); }
+    .hidden {
+      display: none !important;
+    }
  
-  .message{ min-height:28px; margin:6px 0 14px; font-size:0.95rem; font-weight:500; }
-  .message.wrong{ color:var(--wrong); }
-  .message.right{ color:var(--right); }
-  .message.hint{ color:var(--muted); font-style:italic; font-weight:400; }
+    /* -----------------------------------------------------------
+       Layout
+    ----------------------------------------------------------- */
+    .card {
+      width: 100%;
+      max-width: 460px;
+    }
  
-  .history{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px; }
-  .history li{
-    display:flex; justify-content:space-between; align-items:center;
-    padding:9px 12px; border-radius:7px; font-size:0.92rem;
-    background:#2b1e1e; border:1px solid #4a2c2a; color:#e39b93;
-  }
-  .history li.correct{ background:#1c2b21; border-color:#2e4a37; color:#8fd6a8; }
-  .history li span.mark{ font-weight:700; }
+    header {
+      margin-bottom: 20px;
+      text-align: center;
+    }
  
-  .reveal-box{
-    text-align:center; margin-top:6px; padding:14px; border-radius:8px;
-    background:var(--card); border:1px solid var(--border);
-  }
-  .reveal-box .name{ font-family:'JetBrains Mono', monospace; font-weight:700; color:var(--accent-dark); font-size:1.15rem; }
-  .reveal-box .region{ color:var(--muted); font-size:0.88rem; margin-top:2px; }
+    h1 {
+      margin: 0 0 4px;
+      font-family: var(--font-mono);
+      font-size: 1.9rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--ink);
+    }
  
-  .load-error{
-    text-align:center; padding:16px; color:var(--wrong); font-size:0.9rem;
-  }
-</style>
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+ 
+    .credit {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+      opacity: 0.75;
+    }
+ 
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px 14px;
+      margin: 18px 0 10px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      font-weight: 500;
+    }
+ 
+    .status-row b {
+      color: var(--ink);
+    }
+ 
+    .streak-indicator b {
+      color: var(--accent);
+    }
+ 
+    /* -----------------------------------------------------------
+       Flag stage & flip tiles
+    ----------------------------------------------------------- */
+    .flag-stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 3 / 2;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: #111;
+      box-shadow: 0 6px 20px rgba(20, 20, 20, 0.08);
+      transition: aspect-ratio 0.25s ease;
+    }
+ 
+    .flag-full {
+      position: absolute;
+      inset: 0;
+    }
+ 
+    .flag-full img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+ 
+    .tiles-grid {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+    }
+ 
+    .tile {
+      overflow: hidden;
+      perspective: 700px;
+      /* Overlap neighboring tiles by a hair. Browser zoom levels that
+         aren't a clean multiple of the device pixel ratio (e.g. 90%,
+         110%) can leave a subpixel rounding gap between grid tracks,
+         letting the flag underneath peek through. A small negative
+         margin makes each tile bleed slightly into its neighbors,
+         which reliably covers that gap at any zoom level. The 1px
+         bleed at the outer edge of the whole grid is clipped by
+         .flag-stage's overflow:hidden, so nothing looks different
+         at normal zoom. */
+      margin: -1px;
+    }
+ 
+    .tile-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.65s cubic-bezier(0.4, 0.2, 0.2, 1);
+    }
+ 
+    .tile-inner.flipped {
+      transform: rotateY(180deg);
+    }
+ 
+    .tile-face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+    }
+ 
+    .tile-front {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--tile-back), #1a1c22);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    }
+ 
+    .tile-front::after {
+      content: '?';
+      font-family: var(--font-mono);
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: rgba(201, 162, 75, 0.55);
+    }
+ 
+    .tile-back {
+      background: transparent;
+      transform: rotateY(180deg);
+    }
+ 
+    /* -----------------------------------------------------------
+       Guess form
+    ----------------------------------------------------------- */
+    .guess-row {
+      display: flex;
+      gap: 8px;
+      margin: 18px 0 8px;
+    }
+ 
+    input[type="text"] {
+      flex: 1;
+      padding: 11px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--card);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 1rem;
+    }
+ 
+    input[type="text"]:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+ 
+    input[type="text"]:disabled {
+      background: #22232b;
+      color: var(--muted);
+    }
+ 
+    button {
+      padding: 11px 18px;
+      border: none;
+      border-radius: var(--radius-md);
+      background: var(--accent);
+      color: #1c1a12;
+      font-family: var(--font-mono);
+      font-size: 0.92rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+ 
+    button:hover:not(:disabled) {
+      background: var(--accent-dark);
+    }
+ 
+    button:disabled {
+      background: #3a3b42;
+      color: #7a7870;
+      cursor: default;
+    }
+ 
+    button.secondary {
+      width: 100%;
+      margin-top: 14px;
+      padding: 10px;
+      background: transparent;
+      color: var(--accent-dark);
+      border: 1px solid var(--accent-dark);
+    }
+ 
+    button.secondary:hover {
+      background: rgba(217, 168, 74, 0.1);
+    }
+ 
+    /* -----------------------------------------------------------
+       Feedback message
+    ----------------------------------------------------------- */
+    .message {
+      min-height: 28px;
+      margin: 6px 0 14px;
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+ 
+    .message.wrong {
+      color: var(--wrong);
+    }
+ 
+    .message.right {
+      color: var(--right);
+    }
+ 
+    .message.hint {
+      color: var(--muted);
+      font-style: italic;
+      font-weight: 400;
+    }
+ 
+    /* -----------------------------------------------------------
+       Guess history
+    ----------------------------------------------------------- */
+    .history {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+ 
+    .history li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 12px;
+      border: 1px solid #4a2c2a;
+      border-radius: var(--radius-sm);
+      background: #2b1e1e;
+      color: #e39b93;
+      font-size: 0.92rem;
+    }
+ 
+    .history li.correct {
+      border-color: #2e4a37;
+      background: #1c2b21;
+      color: #8fd6a8;
+    }
+ 
+    .history li .mark {
+      font-weight: 700;
+    }
+ 
+    /* -----------------------------------------------------------
+       Reveal box
+    ----------------------------------------------------------- */
+    .reveal-box {
+      margin-top: 6px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--card);
+      text-align: center;
+    }
+ 
+    .reveal-box .name {
+      font-family: var(--font-mono);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--accent-dark);
+    }
+ 
+    .reveal-box .region {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+ 
+    .load-error {
+      padding: 16px;
+      color: var(--wrong);
+      font-size: 0.9rem;
+      text-align: center;
+    }
+  </style>
 </head>
 <body>
-<div class="card">
-  <header>
-    <h1>FLAGLE 2</h1>
-    <p class="subtitle">Guess the country from its flag</p>
-    <p class="credit">Created by Your Name</p>
-  </header>
+  <div class="card">
+    <header>
+      <h1>FLAGLE 2</h1>
+      <p class="subtitle">Guess the country from its flag</p>
+      <p class="credit">Created by Crypt and Inco :P</p>
+    </header>
  
-  <div class="status-row">
-    <span>Guess <b id="guessCount">0</b>/6</span>
-    <span class="streak-indicator">🔥 Streak: <b id="streakCount">0</b></span>
-    <span id="statusText">Segments hidden</span>
+    <div class="status-row">
+      <span>Guess <b id="guessCount">0</b>/6</span>
+      <span class="streak-indicator">🔥 Streak: <b id="streakCount">0</b></span>
+      <span id="statusText">Segments hidden</span>
+    </div>
+ 
+    <div class="flag-stage">
+      <div class="flag-full" id="flagFull"></div>
+      <div class="tiles-grid" id="tilesGrid"></div>
+    </div>
+ 
+    <form class="guess-row" id="guessForm" autocomplete="off">
+      <input
+        type="text"
+        id="guessInput"
+        list="countryList"
+        placeholder="Name the country..."
+        aria-label="Country guess"
+      >
+      <datalist id="countryList"></datalist>
+      <button type="submit">Guess</button>
+    </form>
+ 
+    <div class="message" id="message" role="status" aria-live="polite"></div>
+ 
+    <ul class="history" id="history"></ul>
+    <div class="reveal-box hidden" id="revealBox"></div>
+ 
+    <button class="secondary hidden" id="newGameBtn" type="button">⟳ New Flag</button>
   </div>
  
-  <div class="flag-stage">
-    <div class="flag-full" id="flagFull"></div>
-    <div class="tiles-grid" id="tilesGrid"></div>
-  </div>
+  <script>
+    'use strict';
  
-  <form class="guess-row" id="guessForm" autocomplete="off">
-    <input type="text" id="guessInput" list="countryList" placeholder="Name the country..." />
-    <datalist id="countryList"></datalist>
-    <button type="submit">Guess</button>
-  </form>
+    /* =============================================================
+       Flag data
+       ---------------------------------------------------------
+       Each entry needs:
+         name   – what the player must type to win
+         region – shown as a hint after the 2nd wrong guess
+         file   – image URL or local path (e.g. "flags/my-flag.png")
  
-  <div class="message" id="message"></div>
+       Add your own flag by dropping an image file next to this
+       page and adding a line below — no other code changes needed.
  
-  <ul class="history" id="history"></ul>
-  <div class="reveal-box" id="revealBox" style="display:none;"></div>
- 
-  <button class="secondary" id="newGameBtn" style="display:none;">⟳ New Flag</button>
-</div>
- 
-<script>
-/* ============================================================
-   FLAG LIBRARY — add your own flags here.
- 
-   Each entry needs:
-     name   – what the player must type to win
-     region – shown as a hint after 2 wrong guesses
-     file   – path to the image (local file or a URL)
- 
-   TO ADD YOUR OWN FLAG IMAGE:
-     1. Put the image file (jpg/png/webp/svg) in a folder called
-        "flags" next to this html file, e.g. flags/my-flag.png
-     2. Add a line below:
-        { name: "My Country", region: "My Region", file: "flags/my-flag.png" },
-     3. Save and reload the page. That's it — no other code changes needed.
- 
-   The starter list below points to flagcdn.com (a free public flag
-   image service) so the game works immediately. Feel free to delete
-   any of these and replace them with your own local files.
- 
-   RELIABILITY: every "file" entry that points at flagcdn.com is also
-   automatically retried against a second, independent flag CDN
-   (jsDelivr's flag-icons package) if the first image fails to load.
-   That fallback only kicks in for flagcdn.com URLs — local files you
-   add yourself are used as-is.
-   ============================================================ */
-const FLAGS = [
+       Reliability: any "file" pointing at flagcdn.com is retried
+       against a second CDN (jsDelivr's flag-icons package) if the
+       primary image fails to load. Local files are used as-is.
+    ============================================================= */
+    const FLAGS = [
   { name: "Afghanistan", region: "Asia", file: "https://flagcdn.com/w320/af.png" },
+  { name: "Åland Islands", region: "Europe", file: "https://flagcdn.com/w320/ax.png" },
   { name: "Albania", region: "Europe", file: "https://flagcdn.com/w320/al.png" },
   { name: "Algeria", region: "Africa", file: "https://flagcdn.com/w320/dz.png" },
   { name: "Andorra", region: "Europe", file: "https://flagcdn.com/w320/ad.png" },
   { name: "Angola", region: "Africa", file: "https://flagcdn.com/w320/ao.png" },
+  { name: "Anguilla", region: "North America", file: "https://flagcdn.com/w320/ai.png" },
   { name: "Antigua and Barbuda", region: "North America", file: "https://flagcdn.com/w320/ag.png" },
   { name: "Argentina", region: "South America", file: "https://flagcdn.com/w320/ar.png" },
   { name: "Armenia", region: "Asia", file: "https://flagcdn.com/w320/am.png" },
@@ -201,23 +429,32 @@ const FLAGS = [
   { name: "Belgium", region: "Europe", file: "https://flagcdn.com/w320/be.png" },
   { name: "Belize", region: "North America", file: "https://flagcdn.com/w320/bz.png" },
   { name: "Benin", region: "Africa", file: "https://flagcdn.com/w320/bj.png" },
+  { name: "Bermuda", region: "North America", file: "https://flagcdn.com/w320/bm.png" },
   { name: "Bhutan", region: "Asia", file: "https://flagcdn.com/w320/bt.png" },
   { name: "Bolivia", region: "South America", file: "https://flagcdn.com/w320/bo.png" },
   { name: "Bosnia and Herzegovina", region: "Europe", file: "https://flagcdn.com/w320/ba.png" },
   { name: "Botswana", region: "Africa", file: "https://flagcdn.com/w320/bw.png" },
+  { name: "Bouvet Island", region: "Africa / Antarctica", file: "https://flagcdn.com/w320/bv.png" },
   { name: "Brazil", region: "South America", file: "https://flagcdn.com/w320/br.png" },
+  { name: "British Indian Ocean Territory", region: "Africa", file: "https://flagcdn.com/w320/io.png" },
+  { name: "British Virgin Islands", region: "North America", file: "https://flagcdn.com/w320/vg.png" },
   { name: "Burkina Faso", region: "Africa", file: "https://flagcdn.com/w320/bf.png" },
   { name: "Burundi", region: "Africa", file: "https://flagcdn.com/w320/bi.png" },
   { name: "Cambodia", region: "Asia", file: "https://flagcdn.com/w320/kh.png" },
   { name: "Cameroon", region: "Africa", file: "https://flagcdn.com/w320/cm.png" },
   { name: "Canada", region: "North America", file: "https://flagcdn.com/w320/ca.png" },
   { name: "Cape Verde", region: "Africa", file: "https://flagcdn.com/w320/cv.png" },
+  { name: "Caribbean Netherlands", region: "North America", file: "https://flagcdn.com/w320/bq.png" },
+  { name: "Cayman Islands", region: "North America", file: "https://flagcdn.com/w320/ky.png" },
   { name: "Central African Republic", region: "Africa", file: "https://flagcdn.com/w320/cf.png" },
   { name: "Chad", region: "Africa", file: "https://flagcdn.com/w320/td.png" },
   { name: "Chile", region: "South America", file: "https://flagcdn.com/w320/cl.png" },
   { name: "China", region: "Asia", file: "https://flagcdn.com/w320/cn.png" },
+  { name: "Christmas Island", region: "Oceania", file: "https://flagcdn.com/w320/cx.png" },
+  { name: "Cocos Islands", region: "Oceania", file: "https://flagcdn.com/w320/cc.png" },
   { name: "Colombia", region: "South America", file: "https://flagcdn.com/w320/co.png" },
   { name: "Comoros", region: "Africa", file: "https://flagcdn.com/w320/km.png" },
+  { name: "Cook Islands", region: "Oceania", file: "https://flagcdn.com/w320/ck.png" },
   { name: "Costa Rica", region: "North America", file: "https://flagcdn.com/w320/cr.png" },
   { name: "Cote d'Ivoire", region: "Africa", file: "https://flagcdn.com/w320/ci.png" },
   { name: "Croatia", region: "Europe", file: "https://flagcdn.com/w320/hr.png" },
@@ -236,29 +473,41 @@ const FLAGS = [
   { name: "Eritrea", region: "Africa", file: "https://flagcdn.com/w320/er.png" },
   { name: "Estonia", region: "Europe", file: "https://flagcdn.com/w320/ee.png" },
   { name: "Eswatini", region: "Africa", file: "https://flagcdn.com/w320/sz.png" },
+  { name: "Falkland Islands", region: "South America", file: "https://flagcdn.com/w320/fk.png" },
+  { name: "Faroe Islands", region: "Europe", file: "https://flagcdn.com/w320/fo.png" },
   { name: "Finland", region: "Europe", file: "https://flagcdn.com/w320/fi.png" },
   { name: "France", region: "Europe", file: "https://flagcdn.com/w320/fr.png" },
+  { name: "French Guiana", region: "South America", file: "https://flagcdn.com/w320/gf.png" },
+  { name: "French Polynesia", region: "Oceania", file: "https://flagcdn.com/w320/pf.png" },
+  { name: "French Southern and Antarctic Lands", region: "Antarctica", file: "https://flagcdn.com/w320/tf.png" },
   { name: "Gabon", region: "Africa", file: "https://flagcdn.com/w320/ga.png" },
   { name: "Gambia", region: "Africa", file: "https://flagcdn.com/w320/gm.png" },
   { name: "Georgia", region: "Asia", file: "https://flagcdn.com/w320/ge.png" },
   { name: "Germany", region: "Europe", file: "https://flagcdn.com/w320/de.png" },
   { name: "Ghana", region: "Africa", file: "https://flagcdn.com/w320/gh.png" },
+  { name: "Gibraltar", region: "Europe", file: "https://flagcdn.com/w320/gi.png" },
   { name: "Greece", region: "Europe", file: "https://flagcdn.com/w320/gr.png" },
   { name: "Grenada", region: "North America", file: "https://flagcdn.com/w320/gd.png" },
+  { name: "Guadeloupe", region: "North America", file: "https://flagcdn.com/w320/gp.png" },
+  { name: "Guam", region: "Oceania", file: "https://flagcdn.com/w320/gu.png" },
   { name: "Guatemala", region: "North America", file: "https://flagcdn.com/w320/gt.png" },
+  { name: "Guernsey", region: "Europe", file: "https://flagcdn.com/w320/gg.png" },
   { name: "Guinea", region: "Africa", file: "https://flagcdn.com/w320/gn.png" },
   { name: "Guinea-Bissau", region: "Africa", file: "https://flagcdn.com/w320/gw.png" },
   { name: "Guyana", region: "South America", file: "https://flagcdn.com/w320/gy.png" },
   { name: "Haiti", region: "North America", file: "https://flagcdn.com/w320/ht.png" },
+  { name: "Heard Island and McDonald Islands", region: "Oceania", file: "https://flagcdn.com/w320/hm.png" },
   { name: "Honduras", region: "North America", file: "https://flagcdn.com/w320/hn.png" },
   { name: "India", region: "Asia", file: "https://flagcdn.com/w320/in.png" },
   { name: "Indonesia", region: "Asia", file: "https://flagcdn.com/w320/id.png" },
   { name: "Iran", region: "Asia", file: "https://flagcdn.com/w320/ir.png" },
   { name: "Ireland", region: "Europe", file: "https://flagcdn.com/w320/ie.png" },
+  { name: "Isle of Man", region: "Europe", file: "https://flagcdn.com/w320/im.png" },
   { name: "Israel", region: "Asia", file: "https://flagcdn.com/w320/il.png" },
   { name: "Italy", region: "Europe", file: "https://flagcdn.com/w320/it.png" },
   { name: "Jamaica", region: "North America", file: "https://flagcdn.com/w320/jm.png" },
   { name: "Japan", region: "Asia", file: "https://flagcdn.com/w320/jp.png" },
+  { name: "Jersey", region: "Europe", file: "https://flagcdn.com/w320/je.png" },
   { name: "Jordan", region: "Asia", file: "https://flagcdn.com/w320/jo.png" },
   { name: "Kazakhstan", region: "Asia", file: "https://flagcdn.com/w320/kz.png" },
   { name: "Kenya", region: "Africa", file: "https://flagcdn.com/w320/ke.png" },
@@ -281,14 +530,17 @@ const FLAGS = [
   { name: "Mali", region: "Africa", file: "https://flagcdn.com/w320/ml.png" },
   { name: "Malta", region: "Europe", file: "https://flagcdn.com/w320/mt.png" },
   { name: "Marshall Islands", region: "Oceania", file: "https://flagcdn.com/w320/mh.png" },
+  { name: "Martinique", region: "North America", file: "https://flagcdn.com/w320/mq.png" },
   { name: "Mauritania", region: "Africa", file: "https://flagcdn.com/w320/mr.png" },
   { name: "Mauritius", region: "Africa", file: "https://flagcdn.com/w320/mu.png" },
+  { name: "Mayotte", region: "Africa", file: "https://flagcdn.com/w320/yt.png" },
   { name: "Mexico", region: "North America", file: "https://flagcdn.com/w320/mx.png" },
   { name: "Micronesia", region: "Oceania", file: "https://flagcdn.com/w320/fm.png" },
   { name: "Moldova", region: "Europe", file: "https://flagcdn.com/w320/md.png" },
   { name: "Monaco", region: "Europe", file: "https://flagcdn.com/w320/mc.png" },
   { name: "Mongolia", region: "Asia", file: "https://flagcdn.com/w320/mn.png" },
   { name: "Montenegro", region: "Europe", file: "https://flagcdn.com/w320/me.png" },
+  { name: "Montserrat", region: "North America", file: "https://flagcdn.com/w320/ms.png" },
   { name: "Morocco", region: "Africa", file: "https://flagcdn.com/w320/ma.png" },
   { name: "Mozambique", region: "Africa", file: "https://flagcdn.com/w320/mz.png" },
   { name: "Myanmar", region: "Asia", file: "https://flagcdn.com/w320/mm.png" },
@@ -296,12 +548,16 @@ const FLAGS = [
   { name: "Nauru", region: "Oceania", file: "https://flagcdn.com/w320/nr.png" },
   { name: "Nepal", region: "Asia", file: "https://flagcdn.com/w320/np.png" },
   { name: "Netherlands", region: "Europe", file: "https://flagcdn.com/w320/nl.png" },
+  { name: "New Caledonia", region: "Oceania", file: "https://flagcdn.com/w320/nc.png" },
   { name: "New Zealand", region: "Oceania", file: "https://flagcdn.com/w320/nz.png" },
   { name: "Nicaragua", region: "North America", file: "https://flagcdn.com/w320/ni.png" },
   { name: "Niger", region: "Africa", file: "https://flagcdn.com/w320/ne.png" },
   { name: "Nigeria", region: "Africa", file: "https://flagcdn.com/w320/ng.png" },
+  { name: "Niue", region: "Oceania", file: "https://flagcdn.com/w320/nu.png" },
+  { name: "Norfolk Island", region: "Oceania", file: "https://flagcdn.com/w320/nf.png" },
   { name: "North Korea", region: "Asia", file: "https://flagcdn.com/w320/kp.png" },
   { name: "North Macedonia", region: "Europe", file: "https://flagcdn.com/w320/mk.png" },
+  { name: "Northern Mariana Islands", region: "Oceania", file: "https://flagcdn.com/w320/mp.png" },
   { name: "Norway", region: "Europe", file: "https://flagcdn.com/w320/no.png" },
   { name: "Oman", region: "Asia", file: "https://flagcdn.com/w320/om.png" },
   { name: "Pakistan", region: "Asia", file: "https://flagcdn.com/w320/pk.png" },
@@ -311,15 +567,23 @@ const FLAGS = [
   { name: "Paraguay", region: "South America", file: "https://flagcdn.com/w320/py.png" },
   { name: "Peru", region: "South America", file: "https://flagcdn.com/w320/pe.png" },
   { name: "Philippines", region: "Asia", file: "https://flagcdn.com/w320/ph.png" },
+  { name: "Pitcairn Islands", region: "Oceania", file: "https://flagcdn.com/w320/pn.png" },
   { name: "Poland", region: "Europe", file: "https://flagcdn.com/w320/pl.png" },
   { name: "Portugal", region: "Europe", file: "https://flagcdn.com/w320/pt.png" },
+  { name: "Puerto Rico", region: "North America", file: "https://flagcdn.com/w320/pr.png" },
   { name: "Qatar", region: "Asia", file: "https://flagcdn.com/w320/qa.png" },
   { name: "Republic of the Congo", region: "Africa", file: "https://flagcdn.com/w320/cg.png" },
+  { name: "Réunion", region: "Africa", file: "https://flagcdn.com/w320/re.png" },
   { name: "Romania", region: "Europe", file: "https://flagcdn.com/w320/ro.png" },
   { name: "Russia", region: "Europe / Asia", file: "https://flagcdn.com/w320/ru.png" },
   { name: "Rwanda", region: "Africa", file: "https://flagcdn.com/w320/rw.png" },
+  { name: "Sahrawi Arab Democratic Republic", region: "Africa", file: "https://flagcdn.com/w320/eh.png" },
+  { name: "Saint Barthélemy", region: "North America", file: "https://flagcdn.com/w320/bl.png" },
+  { name: "Saint Helena, Ascension and Tristan da Cunha", region: "Africa", file: "https://flagcdn.com/w320/sh.png" },
   { name: "Saint Kitts and Nevis", region: "North America", file: "https://flagcdn.com/w320/kn.png" },
   { name: "Saint Lucia", region: "North America", file: "https://flagcdn.com/w320/lc.png" },
+  { name: "Saint Martin", region: "North America", file: "https://flagcdn.com/w320/mf.png" },
+  { name: "Saint Pierre and Miquelon", region: "North America", file: "https://flagcdn.com/w320/pm.png" },
   { name: "Saint Vincent and the Grenadines", region: "North America", file: "https://flagcdn.com/w320/vc.png" },
   { name: "Samoa", region: "Oceania", file: "https://flagcdn.com/w320/ws.png" },
   { name: "San Marino", region: "Europe", file: "https://flagcdn.com/w320/sm.png" },
@@ -330,17 +594,20 @@ const FLAGS = [
   { name: "Seychelles", region: "Africa", file: "https://flagcdn.com/w320/sc.png" },
   { name: "Sierra Leone", region: "Africa", file: "https://flagcdn.com/w320/sl.png" },
   { name: "Singapore", region: "Asia", file: "https://flagcdn.com/w320/sg.png" },
+  { name: "Sint Maarten", region: "North America", file: "https://flagcdn.com/w320/sx.png" },
   { name: "Slovakia", region: "Europe", file: "https://flagcdn.com/w320/sk.png" },
   { name: "Slovenia", region: "Europe", file: "https://flagcdn.com/w320/si.png" },
   { name: "Solomon Islands", region: "Oceania", file: "https://flagcdn.com/w320/sb.png" },
   { name: "Somalia", region: "Africa", file: "https://flagcdn.com/w320/so.png" },
   { name: "South Africa", region: "Africa", file: "https://flagcdn.com/w320/za.png" },
+  { name: "South Georgia and the South Sandwich Islands", region: "Antarctica", file: "https://flagcdn.com/w320/gs.png" },
   { name: "South Korea", region: "Asia", file: "https://flagcdn.com/w320/kr.png" },
   { name: "South Sudan", region: "Africa", file: "https://flagcdn.com/w320/ss.png" },
   { name: "Spain", region: "Europe", file: "https://flagcdn.com/w320/es.png" },
   { name: "Sri Lanka", region: "Asia", file: "https://flagcdn.com/w320/lk.png" },
   { name: "Sudan", region: "Africa", file: "https://flagcdn.com/w320/sd.png" },
   { name: "Suriname", region: "South America", file: "https://flagcdn.com/w320/sr.png" },
+  { name: "Svalbard and Jan Mayen", region: "Europe", file: "https://flagcdn.com/w320/sj.png" },
   { name: "Sweden", region: "Europe", file: "https://flagcdn.com/w320/se.png" },
   { name: "Switzerland", region: "Europe", file: "https://flagcdn.com/w320/ch.png" },
   { name: "Syria", region: "Asia", file: "https://flagcdn.com/w320/sy.png" },
@@ -349,195 +616,307 @@ const FLAGS = [
   { name: "Thailand", region: "Asia", file: "https://flagcdn.com/w320/th.png" },
   { name: "Timor-Leste", region: "Asia", file: "https://flagcdn.com/w320/tl.png" },
   { name: "Togo", region: "Africa", file: "https://flagcdn.com/w320/tg.png" },
+  { name: "Tokelau", region: "Oceania", file: "https://flagcdn.com/w320/tk.png" },
   { name: "Tonga", region: "Oceania", file: "https://flagcdn.com/w320/to.png" },
   { name: "Trinidad and Tobago", region: "North America", file: "https://flagcdn.com/w320/tt.png" },
   { name: "Tunisia", region: "Africa", file: "https://flagcdn.com/w320/tn.png" },
   { name: "Turkey", region: "Europe / Asia", file: "https://flagcdn.com/w320/tr.png" },
   { name: "Turkmenistan", region: "Asia", file: "https://flagcdn.com/w320/tm.png" },
+  { name: "Turks and Caicos Islands", region: "North America", file: "https://flagcdn.com/w320/tc.png" },
   { name: "Tuvalu", region: "Oceania", file: "https://flagcdn.com/w320/tv.png" },
   { name: "Uganda", region: "Africa", file: "https://flagcdn.com/w320/ug.png" },
   { name: "Ukraine", region: "Europe", file: "https://flagcdn.com/w320/ua.png" },
   { name: "United Arab Emirates", region: "Asia", file: "https://flagcdn.com/w320/ae.png" },
   { name: "United Kingdom", region: "Europe", file: "https://flagcdn.com/w320/gb.png" },
   { name: "United States", region: "North America", file: "https://flagcdn.com/w320/us.png" },
+  { name: "United States Minor Outlying Islands", region: "North America", file: "https://flagcdn.com/w320/um.png" },
+  { name: "United States Virgin Islands", region: "North America", file: "https://flagcdn.com/w320/vi.png" },
   { name: "Uruguay", region: "South America", file: "https://flagcdn.com/w320/uy.png" },
   { name: "Uzbekistan", region: "Asia", file: "https://flagcdn.com/w320/uz.png" },
   { name: "Vanuatu", region: "Oceania", file: "https://flagcdn.com/w320/vu.png" },
   { name: "Venezuela", region: "South America", file: "https://flagcdn.com/w320/ve.png" },
   { name: "Vietnam", region: "Asia", file: "https://flagcdn.com/w320/vn.png" },
+  { name: "Wallis and Futuna", region: "Oceania", file: "https://flagcdn.com/w320/wf.png" },
   { name: "Yemen", region: "Asia", file: "https://flagcdn.com/w320/ye.png" },
   { name: "Zambia", region: "Africa", file: "https://flagcdn.com/w320/zm.png" },
   { name: "Zimbabwe", region: "Africa", file: "https://flagcdn.com/w320/zw.png" },
+    ];
  
-  // Example of a locally-added flag (uncomment once you add the file):
-  // { name: "My Country", region: "My Region", file: "flags/my-flag.png" },
-];
+    /* =============================================================
+       Constants & state
+    ============================================================= */
+    const MAX_TRIES = 6;
+    const TILE_COUNT = 6;
+    const HINT_AFTER_TRIES = 2;
+    const STORAGE_KEY = 'flagleStreak';
+    const DEFAULT_ASPECT_RATIO = '3 / 2';
+    const FLAGCDN_PATTERN = /flagcdn\.com\/w\d+\/([a-z]{2})\.png$/i;
  
-const MAX_TRIES = 6;
-let current, tries, guessed, tileOrder;
-let streak = 0;
-try{ streak = parseInt(localStorage.getItem('flagleStreak') || '0', 10) || 0; }catch(e){ /* storage unavailable — start at 0 */ }
+    let currentFlag = null;
+    let triesUsed = 0;
+    let isRoundOver = false;
+    let tileRevealOrder = [];
+    let streak = readStoredStreak();
  
-const flagFull = document.getElementById('flagFull');
-const flagStage = document.querySelector('.flag-stage');
-const tilesGrid = document.getElementById('tilesGrid');
-const guessCount = document.getElementById('guessCount');
-const streakCount = document.getElementById('streakCount');
-const statusText = document.getElementById('statusText');
-const message = document.getElementById('message');
-const historyEl = document.getElementById('history');
-const revealBox = document.getElementById('revealBox');
-const form = document.getElementById('guessForm');
-const input = document.getElementById('guessInput');
-const newGameBtn = document.getElementById('newGameBtn');
-const datalist = document.getElementById('countryList');
+    /* =============================================================
+       DOM references
+    ============================================================= */
+    const dom = {
+      flagFull: document.getElementById('flagFull'),
+      flagStage: document.querySelector('.flag-stage'),
+      tilesGrid: document.getElementById('tilesGrid'),
+      guessCount: document.getElementById('guessCount'),
+      streakCount: document.getElementById('streakCount'),
+      statusText: document.getElementById('statusText'),
+      message: document.getElementById('message'),
+      history: document.getElementById('history'),
+      revealBox: document.getElementById('revealBox'),
+      form: document.getElementById('guessForm'),
+      input: document.getElementById('guessInput'),
+      submitButton: document.querySelector('#guessForm button[type="submit"]'),
+      newGameButton: document.getElementById('newGameBtn'),
+      countryList: document.getElementById('countryList'),
+    };
  
-function updateStreakDisplay(){
-  streakCount.textContent = streak;
-}
-updateStreakDisplay();
- 
-datalist.innerHTML = FLAGS.map(f => `<option value="${f.name}">`).join('');
- 
-function shuffledIndices(n){
-  const arr = [...Array(n).keys()];
-  for(let i = arr.length - 1; i > 0; i--){
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
- 
-function buildTiles(){
-  tilesGrid.innerHTML = '';
-  for(let i = 0; i < 6; i++){
-    const tile = document.createElement('div');
-    tile.className = 'tile';
-    tile.innerHTML = `
-      <div class="tile-inner" id="tile-${i}">
-        <div class="tile-face tile-front"></div>
-        <div class="tile-face tile-back"></div>
-      </div>`;
-    tilesGrid.appendChild(tile);
-  }
-}
- 
-function startGame(){
-  if(!FLAGS.length){
-    flagFull.innerHTML = `<div class="load-error">No flags configured. Add entries to the FLAGS array in the code.</div>`;
-    return;
-  }
-  current = FLAGS[Math.floor(Math.random() * FLAGS.length)];
-  tries = 0; guessed = false;
-  tileOrder = shuffledIndices(6);
- 
-  flagStage.style.aspectRatio = '3 / 2'; // reset to default while the real one loads
-  flagFull.innerHTML = '';
-  const img = document.createElement('img');
-  img.alt = 'Flag to guess';
-  img.src = current.file;
-  img.onload = () => {
-    const w = img.naturalWidth, h = img.naturalHeight;
-    if(w && h) flagStage.style.aspectRatio = `${w} / ${h}`;
-  };
-  img.onerror = () => {
-    // Primary image failed — if it's a flagcdn.com URL, try a second,
-    // independent CDN (jsDelivr's flag-icons package) before giving up.
-    const m = current.file.match(/flagcdn\.com\/w\d+\/([a-z]{2})\.png$/i);
-    if(m && !img.dataset.fallbackTried){
-      img.dataset.fallbackTried = '1';
-      img.src = `https://cdn.jsdelivr.net/npm/flag-icons@7/flags/4x3/${m[1].toLowerCase()}.svg`;
-      return;
+    /* =============================================================
+       Persistence helpers
+    ============================================================= */
+    function readStoredStreak() {
+      try {
+        return parseInt(localStorage.getItem(STORAGE_KEY), 10) || 0;
+      } catch (err) {
+        return 0; // localStorage unavailable (e.g. private browsing) — start at 0
+      }
     }
-    flagFull.innerHTML = `<div class="load-error">Could not load image:<br>${current.file}</div>`;
-  };
-  flagFull.appendChild(img);
-  if(img.complete && img.naturalWidth) img.onload(); // already cached
-  buildTiles();
  
-  guessCount.textContent = '0';
-  statusText.textContent = 'All segments hidden';
-  message.className = 'message';
-  message.textContent = 'Which country flies this flag?';
-  historyEl.innerHTML = '';
-  revealBox.style.display = 'none';
-  input.value = '';
-  input.disabled = false;
-  form.querySelector('button').disabled = false;
-  newGameBtn.style.display = 'none';
-  input.focus();
-}
+    function writeStoredStreak(value) {
+      try {
+        localStorage.setItem(STORAGE_KEY, value);
+      } catch (err) {
+        // localStorage unavailable — streak still works for this session
+      }
+    }
  
-function flipNextTile(){
-  if(tries === 0) return;
-  const idx = tileOrder[tries - 1];
-  const el = document.getElementById('tile-' + idx);
-  if(el) el.classList.add('flipped');
-}
+    /* =============================================================
+       Rendering helpers
+    ============================================================= */
+    function renderStreak() {
+      dom.streakCount.textContent = streak;
+    }
  
-function flipAllTiles(){
-  tileOrder.forEach(idx => {
-    const el = document.getElementById('tile-' + idx);
-    if(el) el.classList.add('flipped');
-  });
-}
+    function setMessage(text, variant) {
+      dom.message.className = variant ? `message ${variant}` : 'message';
+      dom.message.textContent = text;
+    }
  
-function endGame(won){
-  guessed = true;
-  input.disabled = true;
-  form.querySelector('button').disabled = true;
-  flipAllTiles();
-  statusText.textContent = 'Fully revealed';
+    function toggleVisible(el, isVisible) {
+      el.classList.toggle('hidden', !isVisible);
+    }
  
-  streak = won ? streak + 1 : 0;
-  updateStreakDisplay();
-  try{ localStorage.setItem('flagleStreak', streak); }catch(e){ /* storage unavailable — streak still works this session */ }
+    function populateCountryList() {
+      dom.countryList.innerHTML = FLAGS
+        .map((flag) => `<option value="${flag.name}">`)
+        .join('');
+    }
  
-  message.className = 'message ' + (won ? 'right' : 'wrong');
-  message.textContent = won ? '✓ Correct!' : '';
-  revealBox.style.display = 'block';
-  revealBox.innerHTML = `<div class="name">${current.name}</div><div class="region">${current.region}</div>`;
-  newGameBtn.style.display = 'block';
-}
+    /* =============================================================
+       Game setup
+    ============================================================= */
+    function shuffledIndices(count) {
+      const indices = [...Array(count).keys()];
+      for (let i = indices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indices[i], indices[j]] = [indices[j], indices[i]];
+      }
+      return indices;
+    }
  
-form.addEventListener('submit', e => {
-  e.preventDefault();
-  if(guessed) return;
-  const val = input.value.trim();
-  if(!val) return;
-  const correct = val.toLowerCase() === current.name.toLowerCase();
-  tries++;
+    function buildTiles() {
+      dom.tilesGrid.innerHTML = '';
+      for (let i = 0; i < TILE_COUNT; i++) {
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.innerHTML = `
+          <div class="tile-inner" id="tile-${i}">
+            <div class="tile-face tile-front"></div>
+            <div class="tile-face tile-back"></div>
+          </div>`;
+        dom.tilesGrid.appendChild(tile);
+      }
+    }
  
-  const li = document.createElement('li');
-  li.innerHTML = `<span>${val}</span><span class="mark">${correct ? '✓' : '✕'}</span>`;
-  if(correct) li.classList.add('correct');
-  historyEl.prepend(li);
-  input.value = '';
+    function buildFallbackFlagUrl(fileUrl) {
+      const match = fileUrl.match(FLAGCDN_PATTERN);
+      if (!match) return null;
+      const code = match[1].toLowerCase();
+      return `https://cdn.jsdelivr.net/npm/flag-icons@7/flags/4x3/${code}.svg`;
+    }
  
-  flipNextTile();
-  guessCount.textContent = tries;
-  statusText.textContent = tries >= 6 ? 'Fully revealed' : `${6 - tries} segment${6 - tries === 1 ? '' : 's'} still hidden`;
+    function renderFlagImage(flag) {
+      dom.flagStage.style.aspectRatio = DEFAULT_ASPECT_RATIO; // reset while loading
+      dom.flagFull.innerHTML = '';
  
-  if(correct){
-    endGame(true);
-    return;
-  }
+      const img = document.createElement('img');
+      img.alt = 'Flag to guess';
  
-  if(tries >= MAX_TRIES){
-    endGame(false);
-  } else if(tries === 2){
-    message.className = 'message hint';
-    message.textContent = `Hint: this flag belongs to a country in ${current.region}.`;
-  } else {
-    message.className = 'message';
-    message.textContent = '';
-  }
-});
+      const matchNaturalAspectRatio = () => {
+        const { naturalWidth: w, naturalHeight: h } = img;
+        if (w && h) dom.flagStage.style.aspectRatio = `${w} / ${h}`;
+      };
  
-newGameBtn.addEventListener('click', startGame);
+      img.onload = matchNaturalAspectRatio;
+      img.onerror = () => {
+        const fallbackUrl = buildFallbackFlagUrl(flag.file);
+        if (fallbackUrl && !img.dataset.fallbackTried) {
+          img.dataset.fallbackTried = 'true';
+          img.src = fallbackUrl;
+          return;
+        }
+        dom.flagFull.innerHTML = `<div class="load-error">Could not load image:<br>${flag.file}</div>`;
+      };
  
-startGame();
-</script>
+      img.src = flag.file;
+      dom.flagFull.appendChild(img);
+ 
+      // Handle the case where the browser served the image from cache
+      // (onload may not fire for already-complete images in some browsers).
+      if (img.complete && img.naturalWidth) matchNaturalAspectRatio();
+    }
+ 
+    function startNewRound() {
+      if (!FLAGS.length) {
+        dom.flagFull.innerHTML = '<div class="load-error">No flags configured. Add entries to the FLAGS array in the code.</div>';
+        return;
+      }
+ 
+      currentFlag = FLAGS[Math.floor(Math.random() * FLAGS.length)];
+      triesUsed = 0;
+      isRoundOver = false;
+      tileRevealOrder = shuffledIndices(TILE_COUNT);
+ 
+      renderFlagImage(currentFlag);
+      buildTiles();
+ 
+      dom.guessCount.textContent = '0';
+      dom.statusText.textContent = 'All segments hidden';
+      setMessage('Which country flies this flag?');
+      dom.history.innerHTML = '';
+      toggleVisible(dom.revealBox, false);
+      toggleVisible(dom.newGameButton, false);
+ 
+      dom.input.value = '';
+      dom.input.disabled = false;
+      dom.submitButton.disabled = false;
+      dom.input.focus();
+    }
+ 
+    /* =============================================================
+       Tile reveal
+    ============================================================= */
+    function revealNextTile() {
+      if (triesUsed === 0) return;
+      const tileIndex = tileRevealOrder[triesUsed - 1];
+      const tile = document.getElementById(`tile-${tileIndex}`);
+      if (tile) tile.classList.add('flipped');
+    }
+ 
+    function revealAllTiles() {
+      tileRevealOrder.forEach((tileIndex) => {
+        const tile = document.getElementById(`tile-${tileIndex}`);
+        if (tile) tile.classList.add('flipped');
+      });
+    }
+ 
+    /* =============================================================
+       Guess resolution
+    ============================================================= */
+    function findExactMatch(value) {
+      const normalized = value.toLowerCase();
+      return FLAGS.find((flag) => flag.name.toLowerCase() === normalized);
+    }
+ 
+    // If the player's partial input uniquely narrows down to a single
+    // flag name, treat that as their intended answer. This lets someone
+    // type "Switz" and press Enter rather than the full country name.
+    function resolveUniquePrefixMatch(value) {
+      const normalized = value.toLowerCase();
+      const candidates = FLAGS.filter((flag) => flag.name.toLowerCase().startsWith(normalized));
+      return candidates.length === 1 ? candidates[0] : null;
+    }
+ 
+    function recordGuess(displayValue, wasCorrect) {
+      const entry = document.createElement('li');
+      entry.innerHTML = `<span>${displayValue}</span><span class="mark">${wasCorrect ? '✓' : '✕'}</span>`;
+      if (wasCorrect) entry.classList.add('correct');
+      dom.history.prepend(entry);
+    }
+ 
+    function updateStatusAfterGuess() {
+      dom.guessCount.textContent = triesUsed;
+      const remaining = MAX_TRIES - triesUsed;
+      dom.statusText.textContent = remaining <= 0
+        ? 'Fully revealed'
+        : `${remaining} segment${remaining === 1 ? '' : 's'} still hidden`;
+    }
+ 
+    function endRound(didWin) {
+      isRoundOver = true;
+      dom.input.disabled = true;
+      dom.submitButton.disabled = true;
+      revealAllTiles();
+      dom.statusText.textContent = 'Fully revealed';
+ 
+      streak = didWin ? streak + 1 : 0;
+      renderStreak();
+      writeStoredStreak(streak);
+ 
+      setMessage(didWin ? '✓ Correct!' : '', didWin ? 'right' : 'wrong');
+      dom.revealBox.innerHTML = `<div class="name">${currentFlag.name}</div><div class="region">${currentFlag.region}</div>`;
+      toggleVisible(dom.revealBox, true);
+      toggleVisible(dom.newGameButton, true);
+    }
+ 
+    function handleGuessSubmit(event) {
+      event.preventDefault();
+      if (isRoundOver) return;
+ 
+      const rawValue = dom.input.value.trim();
+      if (!rawValue) return;
+ 
+      // Autofill: if the typed prefix uniquely identifies one flag, use its full name.
+      const uniqueMatch = !findExactMatch(rawValue) && resolveUniquePrefixMatch(rawValue);
+      const submittedValue = uniqueMatch ? uniqueMatch.name : rawValue;
+ 
+      const isCorrect = submittedValue.toLowerCase() === currentFlag.name.toLowerCase();
+      triesUsed += 1;
+ 
+      recordGuess(submittedValue, isCorrect);
+      dom.input.value = '';
+      revealNextTile();
+      updateStatusAfterGuess();
+ 
+      if (isCorrect) {
+        endRound(true);
+        return;
+      }
+ 
+      if (triesUsed >= MAX_TRIES) {
+        endRound(false);
+      } else if (triesUsed === HINT_AFTER_TRIES) {
+        setMessage(`Hint: this flag belongs to a country in ${currentFlag.region}.`, 'hint');
+      } else {
+        setMessage('');
+      }
+    }
+ 
+    /* =============================================================
+       Init
+    ============================================================= */
+    populateCountryList();
+    renderStreak();
+    dom.form.addEventListener('submit', handleGuessSubmit);
+    dom.newGameButton.addEventListener('click', startNewRound);
+    startNewRound();
+  </script>
 </body>
 </html>
- 
