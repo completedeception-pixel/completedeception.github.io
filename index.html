@@ -348,6 +348,69 @@
       font-size: 0.9rem;
       text-align: center;
     }
+ 
+    /* -----------------------------------------------------------
+       First-try flag collection
+    ----------------------------------------------------------- */
+    .collection {
+      margin-top: 28px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+ 
+    .collection-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+    }
+ 
+    .collection-header h2 {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--ink);
+    }
+ 
+    .collection-count {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+ 
+    .collection-count b {
+      color: var(--accent);
+    }
+ 
+    .collection-empty {
+      margin: 0 0 4px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-style: italic;
+    }
+ 
+    .collection-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+      gap: 6px;
+    }
+ 
+    .collection-item {
+      position: relative;
+      aspect-ratio: 3 / 2;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #111;
+    }
+ 
+    .collection-item img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
   </style>
 </head>
 <body>
@@ -355,7 +418,7 @@
     <header>
       <h1>FLAGLE 2</h1>
       <p class="subtitle">Guess the country from its flag</p>
-      <p class="credit">Created by Crypt and Inco </p>
+      <p class="credit">Created by Crypt and Inco :P </p>
     </header>
  
     <div class="status-row">
@@ -387,6 +450,17 @@
     <div class="reveal-box hidden" id="revealBox"></div>
  
     <button class="secondary hidden" id="newGameBtn" type="button">⟳ New Flag</button>
+ 
+    <section class="collection">
+      <div class="collection-header">
+        <h2>First-Try Flags</h2>
+        <span class="collection-count"><b id="collectionCount">0</b>/<span id="collectionTotal">0</span></span>
+      </div>
+      <p class="collection-empty hidden" id="collectionEmpty">
+        Guess a flag correctly on your very first try to add it here.
+      </p>
+      <div class="collection-grid" id="collectionGrid"></div>
+    </section>
   </div>
  
   <script>
@@ -656,6 +730,7 @@
     const TILE_COUNT = 6;
     const HINT_AFTER_TRIES = 2;
     const STORAGE_KEY = 'flagleStreak';
+    const COLLECTION_STORAGE_KEY = 'flagleFirstTryCollection';
     const DEFAULT_ASPECT_RATIO = '3 / 2';
     const FLAGCDN_PATTERN = /flagcdn\.com\/w\d+\/([a-z]{2})\.png$/i;
  
@@ -664,6 +739,7 @@
     let isRoundOver = false;
     let tileRevealOrder = [];
     let streak = readStoredStreak();
+    let firstTryCollection = readStoredCollection(); // Set of flag names guessed correctly on try #1
  
     /* =============================================================
        DOM references
@@ -683,6 +759,10 @@
       submitButton: document.querySelector('#guessForm button[type="submit"]'),
       newGameButton: document.getElementById('newGameBtn'),
       countryList: document.getElementById('countryList'),
+      collectionGrid: document.getElementById('collectionGrid'),
+      collectionCount: document.getElementById('collectionCount'),
+      collectionTotal: document.getElementById('collectionTotal'),
+      collectionEmpty: document.getElementById('collectionEmpty'),
     };
  
     /* =============================================================
@@ -701,6 +781,23 @@
         localStorage.setItem(STORAGE_KEY, value);
       } catch (err) {
         // localStorage unavailable — streak still works for this session
+      }
+    }
+ 
+    function readStoredCollection() {
+      try {
+        const raw = localStorage.getItem(COLLECTION_STORAGE_KEY);
+        return new Set(raw ? JSON.parse(raw) : []);
+      } catch (err) {
+        return new Set(); // localStorage unavailable, or corrupted data — start empty
+      }
+    }
+ 
+    function writeStoredCollection() {
+      try {
+        localStorage.setItem(COLLECTION_STORAGE_KEY, JSON.stringify([...firstTryCollection]));
+      } catch (err) {
+        // localStorage unavailable — collection still works for this session
       }
     }
  
@@ -723,6 +820,25 @@
     function populateCountryList() {
       dom.countryList.innerHTML = FLAGS
         .map((flag) => `<option value="${flag.name}">`)
+        .join('');
+    }
+ 
+    function renderCollection() {
+      dom.collectionTotal.textContent = FLAGS.length;
+      dom.collectionCount.textContent = firstTryCollection.size;
+      toggleVisible(dom.collectionEmpty, firstTryCollection.size === 0);
+ 
+      // Preserve collection order (earliest-added first) rather than FLAGS order.
+      const collectedFlags = [...firstTryCollection]
+        .map((name) => FLAGS.find((flag) => flag.name === name))
+        .filter(Boolean);
+ 
+      dom.collectionGrid.innerHTML = collectedFlags
+        .map((flag) => `
+          <div class="collection-item" title="${flag.name}">
+            <img src="${flag.file}" alt="${flag.name}" loading="lazy">
+          </div>
+        `)
         .join('');
     }
  
@@ -877,6 +993,12 @@
       renderStreak();
       writeStoredStreak(streak);
  
+      if (didWin && triesUsed === 1 && !firstTryCollection.has(currentFlag.name)) {
+        firstTryCollection.add(currentFlag.name);
+        writeStoredCollection();
+        renderCollection();
+      }
+ 
       setMessage(didWin ? '✓ Correct!' : '', didWin ? 'right' : 'wrong');
       dom.revealBox.innerHTML = `<div class="name">${currentFlag.name}</div><div class="region">${currentFlag.region}</div>`;
       toggleVisible(dom.revealBox, true);
@@ -921,6 +1043,7 @@
     ============================================================= */
     populateCountryList();
     renderStreak();
+    renderCollection();
     dom.form.addEventListener('submit', handleGuessSubmit);
     dom.newGameButton.addEventListener('click', startNewRound);
     startNewRound();
